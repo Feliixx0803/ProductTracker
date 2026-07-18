@@ -7,6 +7,8 @@ public record ProductDTO(
     String asin,
     String url,
     Double price,
+    Double previousPrice,
     String currency,
-    @JsonProperty("url_image") String urlImage
+    @JsonProperty("url_image") 
+    String urlImage
 ) {}
