@@ -1,10 +1,13 @@
 package com.rastreador.rastreador_productos.services;
 
-import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
-import org.springframework.core.io.ClassPathResource;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestClient;
 
 import com.rastreador.rastreador_productos.dto.ProductDTO;
 import com.rastreador.rastreador_productos.models.Product;
@@ -19,28 +22,83 @@ public class ProductServiceImpl implements ProductService{
 
     private final ObjectMapper objectMapper;
     private final ProductRepository productRepository;
-    
-    public ProductServiceImpl(ObjectMapper objectMapper, ProductRepository productRepository) {
+    private final RestClient restClient;
+
+    //API:
+    @Value("${rapidapi.amazon-api.key}")
+    private String apiKey;
+    @Value("${rapidapi.amazon-api.host}")
+    private String apiHost;
+
+    public ProductServiceImpl(ObjectMapper objectMapper, ProductRepository productRepository, RestClient restClient) {
         this.objectMapper = objectMapper;
         this.productRepository = productRepository;
+        this.restClient = restClient;
     }
 
     
     @Override
     public List<ProductDTO> searchProducts(String query) {
-        ClassPathResource resource = new ClassPathResource("mocks/amazon-search-mock.json");
         try{
-            InputStream inputStream = resource.getInputStream();
 
-            JsonNode rootNode = objectMapper.readTree(inputStream);
-            JsonNode paidNodes = rootNode.get("results").get(0).get("content").get("results").get("paid");
+            JsonNode rootNode = restClient.get()
+                .uri("/search?query={query}&page=1&country=ES", query)
+                .header("x-rapidapi-host", apiHost.trim())
+                .header("x-rapidapi-key", apiKey.trim())
+                .retrieve()
+                .body(JsonNode.class);
+            
+            List<ProductDTO> productsList = new ArrayList<>();
+            
+            
+            JsonNode productsNode = rootNode.path("data").path("products");
 
-            List<ProductDTO> productsList = objectMapper.convertValue(paidNodes, new TypeReference<List<ProductDTO>>(){});
+            if (productsNode.isArray()) {
+                for (JsonNode node : productsNode) {
+                    String title = node.path("product_title").asString("");
+                    String asin = node.path("asin").asString("");
+                    String url = node.path("product_url").asString("");
+                    Double price = parsePrice(node.path("product_price").asString(null));
+                    Double previousPrice = price;
+                    String currency = node.path("currency").asString("EUR");
+                    String urlImage = node.path("product_photo").asString("");
+
+                    productsList.add(new ProductDTO(title, asin, url, price, previousPrice, currency, urlImage));
+                }
+            }
+
             return productsList;
         } catch (Exception e) {
             throw new RuntimeException("Error al buscar los productos: " + e.getMessage(), e);
         }
     }
+
+    //Parsea el precio al formato double, si no se pudo parsear lo establece como 0.0
+    private Double parsePrice(String priceStr) {
+    if (priceStr == null || priceStr.isBlank()) {
+        return 0.0;
+    }
+    try {
+        
+        String clean = priceStr.replaceAll("[^0-9.,]", "").trim();
+        
+        if (clean.isEmpty()) return 0.0;
+
+        
+        if (clean.contains(".") && clean.contains(",")) {
+            //Si tiene puntos y comas, indicamos que los puntos son miles y las comas decimal
+            clean = clean.replace(".", "").replace(",", ".");
+        } 
+        //Si solo tiene coma, indicamos que la coma es el separador decimal
+        else if (clean.contains(",")) {
+            clean = clean.replace(",", ".");
+        }
+
+        return Double.parseDouble(clean);
+    } catch (Exception e) {
+        return 0.0;
+    }
+}
 
     /*public List<ProductDTO> getTrackedProducts() {
         return null;
@@ -60,7 +118,7 @@ public class ProductServiceImpl implements ProductService{
         //Si no esta en la base de datos, lo guardamos
         if(productRepository.findByAsin(asin) == null){
             Product product = new Product(asin, "titulo","url","urlImagen",5.0, "USD");
-            //TODO: cambiarlo buscando en la api
+            
             productRepository.save(product);
         }
     }
