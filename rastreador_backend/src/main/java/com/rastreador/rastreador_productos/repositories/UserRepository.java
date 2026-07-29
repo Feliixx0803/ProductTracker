@@ -5,9 +5,10 @@ import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
-import com.rastreador.rastreador_productos.models.Product;
+import com.rastreador.rastreador_productos.models.User;
 
 @Repository
-public interface ProductRepository extends JpaRepository<Product, Long> {
-    Optional<Product> findByAsin(String asin);   
+public interface UserRepository extends JpaRepository<User, Long>{
+    Optional<User> findByEmail(String email);
+    boolean existsByEmail(String email);
 }

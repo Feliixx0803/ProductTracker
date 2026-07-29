@@ -6,7 +6,7 @@ import com.rastreador.rastreador_productos.dto.ProductDTO;
 
 public interface ProductService {
     List<ProductDTO> searchProducts(String query);
-    //List<ProductDTO> getTrackedProducts();
+    List<ProductDTO> getTrackedProducts();
     ProductDTO getProductByAsin(String asin);
     void trackProduct(String asin);
 }

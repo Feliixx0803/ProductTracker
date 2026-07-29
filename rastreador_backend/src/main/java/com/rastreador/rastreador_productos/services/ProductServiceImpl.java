@@ -100,16 +100,23 @@ public class ProductServiceImpl implements ProductService{
     }
 }
 
-    /*public List<ProductDTO> getTrackedProducts() {
-        return null;
-    }*/
+    public List<ProductDTO> getTrackedProducts() {
+        List<Product> trackedProducts = productRepository.findAll();
+        
+        return trackedProducts.stream().map(p -> new ProductDTO(
+            p.getTitle(),
+            p.getAsin(),
+            p.getUrlProduct(),
+            p.getCurrentPrice(),
+            p.getPreviousPrice(),
+            p.getCurrency(),
+            p.getUrlImage()
+        )).toList();
+    }
 
      //Devuelve null si no encuentra el producto   
      public ProductDTO getProductByAsin(String asin) {
-        Product product = productRepository.findByAsin(asin);
-        if(product == null){
-            return null;
-        }
+        Product product = productRepository.findByAsin(asin).orElseThrow(() -> new RuntimeException("Producto no encontrado con asin: " + asin));
         return new ProductDTO(product.getTitle(), product.getAsin(), product.getUrlProduct(), product.getCurrentPrice(), product.getPreviousPrice(), product.getCurrency(), product.getUrlImage());
     }
 
@@ -117,9 +124,30 @@ public class ProductServiceImpl implements ProductService{
     public void trackProduct(String asin) {
         //Si no esta en la base de datos, lo guardamos
         if(productRepository.findByAsin(asin) == null){
-            Product product = new Product(asin, "titulo","url","urlImagen",5.0, "USD");
+            try {
+                JsonNode rootNode = restClient.get()
+                .uri("/product-details?asin={asin}&country=ES", asin)
+                .header("x-rapidapi-host", apiHost.trim())
+                .header("x-rapidapi-key", apiKey.trim())
+                .retrieve()
+                .body(JsonNode.class);
+
+                System.out.println("=== RESPUESTA DE AMAZON PARA " + asin + " ===");
+            System.out.println(rootNode.toPrettyString());
+
+                JsonNode productDataNode = rootNode.path("data");
+                String title = productDataNode.path("product_title").asString("Producto sin título");
+                String url = productDataNode.path("product_url").asString("");
+                String urlImage = productDataNode.path("product_photo").asString("");
+                Double price = parsePrice(productDataNode.path("product_price").asString(null));
+                String currency = productDataNode.path("currency").asString("EUR");
             
-            productRepository.save(product);
+                Product product = new Product(asin, title, url, urlImage, price, currency);
+                
+                productRepository.save(product);
+            } catch (Exception e) {
+                throw new RuntimeException("Error al guardar y rastrear el producto con ASIN " + asin + ": " + e.getMessage(), e);
+            }
         }
     }
 }

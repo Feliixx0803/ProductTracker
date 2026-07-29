@@ -1,6 +1,7 @@
 package com.rastreador.rastreador_productos.models;
 
 import java.time.LocalDateTime;
+import java.util.Objects;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -118,6 +119,20 @@ public class Product {
     }
     public void setCurrency(String currency) {
         this.currency = currency;
+    }
+
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true; 
+        if (o == null || getClass() != o.getClass()) return false; 
+        Product product = (Product) o;
+        return this.getAsin().equals(product.getAsin());
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(asin);
     }
     
 }

@@ -31,4 +31,10 @@ public class ProductsController {
         productService.trackProduct(asin);
     }
 
+    @GetMapping("/tracked")
+    public List<ProductDTO> getTrackedProducts() {
+        return productService.getTrackedProducts();
+    }
+    
+
 }
