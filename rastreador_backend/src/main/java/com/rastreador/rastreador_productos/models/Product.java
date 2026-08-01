@@ -56,7 +56,7 @@ public class Product {
     public Product() {
     }
 
-    //Getters and setters:
+    //Getters y setters:
 
     public Long getId() {
         return id;

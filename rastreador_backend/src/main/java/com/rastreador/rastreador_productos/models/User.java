@@ -1,7 +1,12 @@
 package com.rastreador.rastreador_productos.models;
 
+import java.util.Collection;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
+
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -16,7 +21,7 @@ import jakarta.persistence.Table;
 
 @Entity
 @Table(name = "usuarios")
-public class User {
+public class User implements UserDetails{
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -92,4 +97,31 @@ public class User {
     public Set<Product> getProducts() {
         return products;
     }
+
+
+
+    //Metodos UserDetails:
+
+    //De momento devolvera null porque en esta version no se han implementado roles
+    @Override
+    public Collection<? extends GrantedAuthority> getAuthorities() {
+        return List.of(); 
+    }
+
+    @Override
+    public String getUsername() {
+        return this.email; 
+    }
+
+    @Override
+    public boolean isAccountNonExpired() { return true; }
+
+    @Override
+    public boolean isAccountNonLocked() { return true; }
+
+    @Override
+    public boolean isCredentialsNonExpired() { return true; }
+
+    @Override
+    public boolean isEnabled() { return true; }
 }
