@@ -10,6 +10,36 @@ services:
       POSTGRES_PASSWORD: root
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d rastreador_local"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./rastreador_backend
+      dockerfile: Dockerfile
+    container_name: rastreador_backend_api
+    restart: always
+    depends_on:
+      postgres-db:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    environment:
+      
+      DB_URL: jdbc:postgresql://postgres-db:5432/rastreador_local
+      DB_USERNAME: postgres
+      DB_PASSWORD: root
+      RAPIDAPI_KEY: ${RAPIDAPI_KEY}
+      RAPIDAPI_HOST: ${RAPIDAPI_HOST:-real-time-amazon-data.p.rapidapi.com}
+      JWT_SECRET: ${JWT_SECRET:-404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
+      MAIL_HOST: ${MAIL_HOST:-sandbox.smtp.mailtrap.io}
+      MAIL_PORT: ${MAIL_PORT:-2525}
+      MAIL_USERNAME: ${MAIL_USERNAME}
+      MAIL_PASSWORD: ${MAIL_PASSWORD}
+      MAIL_FROM: ${MAIL_FROM:-alertas@rastreador.com}
 
 volumes:
   postgres_data:
