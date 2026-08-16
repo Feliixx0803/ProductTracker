@@ -1,28 +1,30 @@
 package com.rastreador.rastreador_productos.services;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
 import com.rastreador.rastreador_productos.dto.ProductDTO;
 import com.rastreador.rastreador_productos.models.Product;
+import com.rastreador.rastreador_productos.models.User;
 import com.rastreador.rastreador_productos.repositories.ProductRepository;
+import com.rastreador.rastreador_productos.repositories.UserRepository;
 
-import tools.jackson.core.type.TypeReference;
+import jakarta.transaction.Transactional;
 import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.ObjectMapper;
 
 @Service
 public class ProductServiceImpl implements ProductService{
 
-    private final ObjectMapper objectMapper;
     private final ProductRepository productRepository;
+    private final UserRepository userRepository;
     private final RestClient restClient;
+    private final UserService userService;
+    private final EmailService emailService;
 
     //API:
     @Value("${rapidapi.amazon-api.key}")
@@ -30,10 +32,20 @@ public class ProductServiceImpl implements ProductService{
     @Value("${rapidapi.amazon-api.host}")
     private String apiHost;
 
-    public ProductServiceImpl(ObjectMapper objectMapper, ProductRepository productRepository, RestClient restClient) {
-        this.objectMapper = objectMapper;
+    public ProductServiceImpl
+    (
+        ProductRepository productRepository, 
+        RestClient restClient, 
+        UserService userService, 
+        UserRepository userRepository,
+        EmailService emailService
+    ) {
+            
         this.productRepository = productRepository;
         this.restClient = restClient;
+        this.userService = userService;
+        this.userRepository = userRepository;
+        this.emailService = emailService;
     }
 
     
@@ -100,10 +112,10 @@ public class ProductServiceImpl implements ProductService{
     }
 }
 
-    public List<ProductDTO> getTrackedProducts() {
-        List<Product> trackedProducts = productRepository.findAll();
+    public List<ProductDTO> getTrackedProducts(String email) {
+        User user = userRepository.findByEmail(email).orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
         
-        return trackedProducts.stream().map(p -> new ProductDTO(
+        return user.getProducts().stream().map(p -> new ProductDTO(
             p.getTitle(),
             p.getAsin(),
             p.getUrlProduct(),
@@ -121,9 +133,9 @@ public class ProductServiceImpl implements ProductService{
     }
 
     //Guardamos en la BBD solo los productos que queremos rastrear
-    public void trackProduct(String asin) {
+    public void trackProduct(String asin, String email) {
         //Si no esta en la base de datos, lo guardamos
-        if(productRepository.findByAsin(asin) == null){
+        if(productRepository.findByAsin(asin).isEmpty()){
             try {
                 JsonNode rootNode = restClient.get()
                 .uri("/product-details?asin={asin}&country=ES", asin)
@@ -131,9 +143,6 @@ public class ProductServiceImpl implements ProductService{
                 .header("x-rapidapi-key", apiKey.trim())
                 .retrieve()
                 .body(JsonNode.class);
-
-                System.out.println("=== RESPUESTA DE AMAZON PARA " + asin + " ===");
-            System.out.println(rootNode.toPrettyString());
 
                 JsonNode productDataNode = rootNode.path("data");
                 String title = productDataNode.path("product_title").asString("Producto sin título");
@@ -149,5 +158,58 @@ public class ProductServiceImpl implements ProductService{
                 throw new RuntimeException("Error al guardar y rastrear el producto con ASIN " + asin + ": " + e.getMessage(), e);
             }
         }
+        userService.addProductToUser(email, asin);
     }
+
+    public void unTrackProduct(String asin, String email){
+        userService.removeProductFromUser(email, asin);
+    }
+
+    @Transactional
+    public void updateTrackedProductsPrices(){
+        List<Product> products = productRepository.findAll();
+
+        for (Product product : products) {
+            try {
+                JsonNode rootNode = restClient.get()
+                        .uri("/product-details?asin={asin}&country=ES", product.getAsin())
+                        .header("x-rapidapi-host", apiHost.trim())
+                        .header("x-rapidapi-key", apiKey.trim())
+                        .retrieve()
+                        .body(JsonNode.class);
+
+                JsonNode productDataNode = rootNode.path("data");
+                Double newPrice = parsePrice(productDataNode.path("product_price").asString(null));
+
+                // Si ha cambiado el precio:
+                if (newPrice > 0 && !newPrice.equals(product.getCurrentPrice())) {
+                    Double oldPrice = product.getCurrentPrice();
+
+                    product.setPreviousPrice(oldPrice);
+                    product.setCurrentPrice(newPrice);
+                    product.setLatestUpdate(LocalDateTime.now());
+                    productRepository.save(product);
+
+                    // Cuando hay bajada de precio notificamos al usuario:
+                    if (newPrice < oldPrice) {
+                        List<User> interestedUsers = userRepository.findByProductsContaining(product);
+                        for (User user : interestedUsers) {
+                            emailService.sendNotification(
+                                    user.getEmail(),
+                                    product.getTitle(),
+                                    oldPrice,
+                                    newPrice,
+                                    product.getUrlProduct()
+                            );
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                System.err.println("Error actualizando precio del producto " + product.getAsin() + ": " + e.getMessage());
+            }
+        }
+        }
+
+
+
 }

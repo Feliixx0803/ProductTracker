@@ -7,6 +7,8 @@ import com.rastreador.rastreador_productos.services.ProductService;
 
 import java.util.List;
 
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -28,13 +30,25 @@ public class ProductsController {
 
     @PostMapping("/track")
     public void trackProduct(@RequestParam String asin) {
-        productService.trackProduct(asin);
+        String email = getAuthenticatedUserEmail();
+        productService.trackProduct(asin, email);
     }
 
     @GetMapping("/tracked")
     public List<ProductDTO> getTrackedProducts() {
-        return productService.getTrackedProducts();
+        String email = getAuthenticatedUserEmail();
+        return productService.getTrackedProducts(email);
     }
     
+    @DeleteMapping("/untrack")
+    public void untrackProduct(@RequestParam String asin) {
+        String email = getAuthenticatedUserEmail();
+        productService.unTrackProduct(asin, email);
+    }
+
+    private String getAuthenticatedUserEmail() {
+        return SecurityContextHolder.getContext().getAuthentication().getName();
+    }
+
 
 }
