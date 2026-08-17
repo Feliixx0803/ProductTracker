@@ -23,7 +23,7 @@ Autentica credenciales y genera token de sesión.
 Body: {"email": "string", "password": "string"}
 Respuesta: {"token": "jwt_token"}
 
-Productos:
+-Productos:
 
 GET /products/search?query={texto}
 Consulta productos en tiempo real en la API de Amazon España.
