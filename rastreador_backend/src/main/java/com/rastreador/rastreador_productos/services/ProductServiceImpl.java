@@ -52,7 +52,8 @@ public class ProductServiceImpl implements ProductService{
     @Override
     public List<ProductDTO> searchProducts(String query) {
         try{
-
+            System.out.println(">>> DEBUG HOST: [" + this.apiHost + "]");
+            System.out.println(">>> DEBUG KEY: [" + (this.apiKey != null ? this.apiKey.length() : "NULL") + " caracteres]");
             JsonNode rootNode = restClient.get()
                 .uri("/search?query={query}&page=1&country=ES", query)
                 .header("x-rapidapi-host", apiHost.trim())

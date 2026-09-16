@@ -2,8 +2,10 @@
 API REST para la búsqueda, seguimiento y monitorización automática de precios de productos en Amazon con alertas por correo electrónico ante bajadas de precio.
 
 --QUICK START--
-Aplicación completamente dockerizada. Para ejecutar rápidamente en local basta con clonar el repositorio, configurar las variables de entorno en application.properties) y ejecutar:
-docker compose up --build.
+Aplicación completamente dockerizada. Para ejecutar rápidamente en local:
+1. Clonar el repositorio
+2. Cambiar el nombre al archivo .env.example por .env y configurar las variables de entorno con sus credenciales
+3. Levantar los contenedores con docker compose up --build.
 
 Backend: Java 25, Spring Boot 4, Spring Security, Spring Data JPA, JJWT (JSON Web Token), JavaMailSender, RestClient.
 Base de Datos: PostgreSQL.
