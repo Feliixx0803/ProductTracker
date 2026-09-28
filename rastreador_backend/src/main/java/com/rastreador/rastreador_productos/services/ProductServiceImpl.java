@@ -126,7 +126,7 @@ public class ProductServiceImpl implements ProductService{
         )).toList();
     }
 
-     //Devuelve null si no encuentra el producto   
+
      public ProductDTO getProductByAsin(String asin) {
         Product product = productRepository.findByAsin(asin).orElseThrow(() -> new RuntimeException("Producto no encontrado con asin: " + asin));
         return new ProductDTO(product.getTitle(), product.getAsin(), product.getUrlProduct(), product.getCurrentPrice(), product.getPreviousPrice(), product.getCurrency(), product.getUrlImage());
