@@ -20,7 +20,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 public class ProductServiceImplTest {
@@ -70,16 +70,27 @@ public class ProductServiceImplTest {
         });
     }
 
-    //Debe devolver la lista de productos en seguimiento para un usuario autenticado
+    //getTrackedProducts: Debe devolver la lista de productos en seguimiento para un usuario autenticado
     @Test
     void shouldReturnTrackedProductsForGivenUser(){
         user.addProduct(product);
         when(userRepository.findByEmail("test@test.com")).thenReturn(Optional.of(user));
         List<ProductDTO> result = productService.getTrackedProducts("test@test.com");
+
         assertNotNull(result);
         assertEquals(1,result.size());
-        assertEquals("B08N5WRWNW",result.get(0).asin());
+        assertEquals("B08N5WRWNW",result.getFirst().asin());
     }
 
+    //Track: Si el producto ya existe en la base de datos, no debe llamar a RestClient:
+    @Test
+    void shouldNotCallAPI_IfProductIsInDatabase(){
+        when(productRepository.findByAsin("B08N5WRWNW")).thenReturn(Optional.of(product));
+        productService.trackProduct("B08N5WRWNW","test@test.com");
+
+        verify(userService, times(1)).addProductToUser("test@test.com", "B08N5WRWNW");
+        verify(productRepository, never()).save(any());
+        verifyNoInteractions(restClient);
+    }
 
 }
